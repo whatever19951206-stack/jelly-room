@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#edeae2">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='8' y='8' width='48' height='48' rx='16' fill='%23df5670'/%3E%3Cpath d='M14 43Q32 62 50 43' stroke='%23557844' stroke-width='8' fill='none'/%3E%3C/svg%3E">
+  <meta name="description" content="开一间软乎乎的果冻小店。切出刚刚好的份量，完成六章订单，收集小店印章。离线可玩。">
+  <title>慢慢切 · 果冻小店</title>
+  <style>/*__STYLE__*/</style>
+</head>
+<body>
+  <main id="app" class="main-menu">
+    <canvas id="world" tabindex="0" aria-label="三维果冻游乐场：拖拽拉伸果冻，拖住时滚轮或双指扭转；切刀模式划线松手切开"></canvas>
+    <header class="brand">
+      <div class="eyebrow"><span class="brand-mark">j.</span> JELLY ROOM <span class="edition">VOL. 01</span></div>
+      <h1>慢慢切<span>。</span></h1>
+      <p class="serif">A little slice of calm.</p>
+      <div class="brand-note">拽一下，切一刀。<br>今天的时间，可以浪费一点。</div>
+    </header>
+    <div class="top-actions">
+      <span class="live"><i></i> 随便玩玩</span>
+      <button id="sandbox-menu" class="icon-button" aria-label="回到果冻小店" title="回到小店" hidden><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-7h6v7"/></svg></button>
+      <button id="sound" class="icon-button" aria-label="关闭声音" title="声音 · M">
+        <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>
+      </button>
+      <button id="help" class="icon-button help-button" aria-label="查看玩法" title="玩法 · H">?</button>
+    </div>
+    <aside class="recipe-panel" aria-label="果冻设置">
+      <div class="panel-heading"><span>今日特调</span><span class="micro">THE MENU</span></div>
+      <div class="flavors" role="group" aria-label="选择口味">
+        <button class="flavor active" data-flavor="melon" aria-pressed="true"><span class="swatch melon"></span><span>西瓜</span></button>
+        <button class="flavor" data-flavor="citrus" aria-pressed="false"><span class="swatch citrus"></span><span>蜜橙</span></button>
+        <button class="flavor" data-flavor="grape" aria-pressed="false"><span class="swatch grape"></span><span>葡萄</span></button>
+      </div>
+      <details id="settings-panel" class="settings-panel">
+        <summary id="settings-toggle" aria-label="展开或收起手感设置"><span>手感设置</span><span class="settings-chevron" aria-hidden="true">＋</span></summary>
+        <div class="settings-body">
+          <div class="settings-heading">一点手感，自己调。<span>LIVE PHYSICS</span></div>
+          <label class="range-label" for="softness">软糯程度 <span id="soft-label">刚刚好</span></label>
+          <input id="softness" type="range" min="0" max="100" value="62" aria-label="软糯程度" aria-describedby="softness-description">
+          <div class="range-ends" id="softness-description"><span>Q 弹</span><span>软乎乎</span></div>
+          <label class="range-label damping-label" for="damping">回弹阻尼 <span id="damping-label">适中</span></label>
+          <input id="damping" type="range" min="0" max="100" value="45" aria-label="回弹阻尼" aria-describedby="damping-description">
+          <div class="range-ends" id="damping-description"><span>多晃一会</span><span>快些停稳</span></div>
+          <div class="physics-controls">
+            <label class="check-control" for="slow-mode"><input id="slow-mode" type="checkbox"><span>¼ 速度</span></label>
+            <label class="check-control" for="mesh-mode"><input id="mesh-mode" type="checkbox"><span>网格</span></label>
+            <button id="pause-mode" class="pause-control" type="button" aria-pressed="false">暂停</button>
+          </div>
+          <div class="physics-stats" aria-label="实时物理状态"><div><span>体积保持</span><output id="volume-value">100%</output></div><div><span>动能</span><output id="energy-value">0.00</output></div></div>
+          <p class="settings-note">随时调整，现有碎块也会跟着变。</p>
+        </div>
+      </details>
+      <button id="jiggle" class="jiggle"><svg viewBox="0 0 24 24"><path d="m3 10 2-3m-1 9 2 2m14-8-2-3m3 9-2 2M8 9q4-3 8 0l1 7q-5 4-10 0Z"/></svg>晃一晃<span>J</span></button>
+    </aside>
+    <div class="specimen-label"><span id="specimen-number">01</span><div><strong id="flavor-name">西瓜软糖</strong><span id="flavor-english">WATERMELON JELLY</span></div><i></i></div>
+    <section class="bottom-bar">
+      <div class="stats"><div><strong id="cuts">00</strong><span>刀 / CUTS</span></div><div><strong id="pieces">01</strong><span>块 / PIECES</span></div><span class="stats-note">没有目标，只有刚刚好的手感。</span></div>
+      <nav class="toolbox" aria-label="操作工具">
+        <button id="drag-tool" class="tool active" aria-pressed="true" title="拖拽 · 1"><svg viewBox="0 0 24 24"><path d="M8 12V6a2 2 0 0 1 4 0v5-7a2 2 0 0 1 4 0v8-5a2 2 0 0 1 4 0v8c0 5-3 7-7 7-3 0-5-2-7-5l-3-4a2 2 0 0 1 3-2l2 2"/></svg><span>拽一拽</span><kbd>1</kbd></button>
+        <button id="cut-tool" class="tool" aria-pressed="false" title="切割 · 2 / 按住空格"><svg viewBox="0 0 24 24"><path d="m3 3 4 1 5 5-4 4-5-5Zm9 6 9 9-5 3-8-8M6 6h.01"/></svg><span>切一刀</span><kbd>2</kbd></button>
+        <span class="tool-divider"></span>
+        <button id="reset" class="reset-tool" aria-label="重新开始" title="重新开始 · R"><svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 0 5M4 4v6h6"/></svg></button>
+      </nav>
+      <div class="footnote">SOFT THINGS. SLOW MOMENTS.<br><span>一个刚刚好的无聊小玩具</span></div>
+    </section>
+    <div class="interaction-hint" id="hint"><span class="hint-dot"></span><span id="hint-text">抓住果冻拉一拉 · 拖住时滚轮或双指扭转</span></div>
+    <div class="angle-control" id="angle-control" hidden><button id="rotate-left" aria-label="逆时针旋转刀">↶</button><span>刀的角度 <b id="angle-value">0°</b></span><button id="rotate-right" aria-label="顺时针旋转刀">↷</button></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="loading" id="loading"><span class="loading-dot"></span><p>正在调制一点软乎乎…</p></div>
+    <dialog id="help-dialog">
+      <button id="close-help" class="dialog-close" aria-label="关闭玩法">×</button>
+      <span class="eyebrow">THE ART OF DOING NOTHING</span><h2>放轻松，慢慢玩。</h2>
+      <div class="instructions"><p><b>01 / 切</b><span>选中切刀，划过想切的位置，松手确定方向。<br>刀会先压出凹陷，再切开；点一下也能下刀。</span></p><p><b>02 / 装盘</b><span>切回「拽一拽」，把合适的碎块拖到订单盘。<br>看清份量和特殊要求，准备好后交给客人。</span></p><p><b>03 / 慢慢来</b><span>按住果冻拉开，拖住时用滚轮或双指扭转。<br>不满意可以撤销；自由玩里没有订单要求。</span></p></div>
+      <p class="physics-help"><b>手感设置</b>软糯程度控制拉伸时的硬度；回弹阻尼决定晃多久。开启 ¼ 速度观察形变，用网格看结构，暂停时定格当前一刻。调整会即时作用于已有碎块。</p>
+      <div class="shortcuts"><span><kbd>1</kbd> 拖拽</span><span><kbd>2</kbd> 切割</span><span><kbd>空格</kbd> 临时切刀</span><span><kbd>滚轮 / Q E</kbd> 转刀</span><span><kbd>U</kbd> 撤销</span><span><kbd>Enter</kbd> 上菜</span><span><kbd>Esc</kbd> 订单册</span><span><kbd>R</kbd> 重来</span><span><kbd>J</kbd> 晃一晃</span></div>
+      <p class="mobile-note">触屏：单指拖拽 / 划线切割 · 双指扭转 · ↶ ↷ 调整点击下刀的角度</p>
+      <button id="start-playing" class="primary-button">好，浪费一点时间。</button>
+    </dialog>
+    <div class="error-panel" id="error-panel" hidden><h2>需要一个支持 WebGL 2 的浏览器</h2><p>请用新版 Chrome 或 Edge 打开此文件，并开启浏览器硬件加速。</p><button onclick="location.reload()">重新加载</button></div>
+  </main>
+  <script>/*__SCRIPT__*/</script>
+</body>
+</html>
