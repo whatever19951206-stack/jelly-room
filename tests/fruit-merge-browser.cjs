@@ -15,7 +15,7 @@ const shopState=page=>page.evaluate(()=>window.__jelly.state);
 const preliminary=process.env.FRUIT_PRELIMINARY==='1';
 const skipOverflow=preliminary||process.env.FRUIT_SKIP_OVER==='1';
 const bundlePath=process.env.GAME_FILE?path.resolve(process.env.GAME_FILE):path.resolve('index.html');
-const report={generatedAt:new Date().toISOString(),gameURL,localBundleSha256:crypto.createHash('sha256').update(fs.readFileSync(bundlePath)).digest('hex'),preliminary,overflowPending:skipOverflow,results:[],errors:[]};
+const report={generatedAt:new Date().toISOString(),gameURL,localBundleSha256:crypto.createHash('sha256').update(fs.readFileSync(bundlePath)).digest('hex'),modelSha256:crypto.createHash('sha256').update(fs.readFileSync('src/fruit-merge-model.js')).digest('hex'),preliminary,overflowPending:skipOverflow,results:[],errors:[]};
 const save=()=>fs.writeFileSync('qa/fruit-merge-browser.json',JSON.stringify(report,null,2)+'\n');
 const stable=s=>({status:s.status,bodies:s.bodies,score:s.score,merges:s.merges,watermelons:s.watermelons,currentLevel:s.currentLevel,nextLevel:s.nextLevel,aimX:s.aimX,dropCooldown:s.dropCooldown,overflowTime:s.overflowTime,elapsed:s.elapsed,drops:s.drops});
 
@@ -68,6 +68,19 @@ async function touchDrop(page,cdp,fromX,toX){
  if(before.drops!==undefined)assert.equal(after.drops,before.drops+1,'touch release drops once');
  else assert.ok(after.dropCooldown>0,'touch release starts drop cooldown');
  return {before,after};
+}
+async function touchPauseAcrossCooldown(page,cdp){
+ const before=await state(page),icon=await page.locator('#fm-pause svg').elementHandle();
+ assert.ok(before.dropCooldown>0,'pause regression begins during a real dropped slice cooldown');
+ const button=await page.locator('#fm-pause').boundingBox();
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:button.x+button.width/2,y:button.y+button.height/2,id:3}]});
+ await waitSimulation(page,.65);
+ assert.equal(await icon.evaluate(node=>node.isConnected),true,'cooldown HUD updates retain the touched pause icon');
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await page.waitForFunction(()=>window.__fruitMerge.state.status==='paused');
+ await tap(page,'#fm-resume',true);await page.waitForFunction(()=>window.__fruitMerge.state.status==='playing');
+ await icon.dispose();
+ return{realTouch:true,crossedCooldown:true,pausedOnRelease:true};
 }
 async function inspectLayout(page){
  const selectors=['#fm-canvas','#fm-left','#fm-right','#fm-drop','#fm-sound','#fm-pause','#fm-restart-top','#fm-exit'];
@@ -253,7 +266,7 @@ async function desktop(page,viewport){
  const evidence=await playForMerges(page,{viewport});
  const layout=await inspectLayout(page);
  const lifecycle=await lifecycleAndPersistence(page);
- const terminal=skipOverflow?{pending:true,reason:'Controls/visual QA; full overflow acceptance follows'}:await gameOver(page);
+ const terminal=skipOverflow?{skipped:true,reason:'This controls run omits the long natural overflow session; report any prior overflow evidence separately'}:await gameOver(page);
  const best=(await state(page)).bestScore;
  await page.reload();await page.waitForFunction(()=>window.__jelly?.state.mode==='menu');await enter(page);
  assert.equal((await state(page)).bestScore,best,'reload preserves actual earned best');
@@ -267,7 +280,8 @@ async function mobile(page,viewport){
  await enter(page,'ready',true);await start(page,true);
  const cdp=await page.context().newCDPSession(page);
  try{
-  await touchDrop(page,cdp,7.5,2.2);await waitSimulation(page,1.5);
+  await touchDrop(page,cdp,7.5,2.2);
+  const nativePause=await touchPauseAcrossCooldown(page,cdp);await waitSimulation(page,.85);
   let before=await readyToDrop(page),p=await projected(page,7.5);
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:1}]});
   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...await projected(page,8.5),id:1}]});
@@ -286,7 +300,7 @@ async function mobile(page,viewport){
   const evidence=await playForMerges(page,{touch:true,cdp,viewport,maxDrops:25,targetMerges:2});
   const layout=await inspectLayout(page);
   const lifecycle=await lifecycleAndPersistence(page,true);
-  return{...evidence,layout,lifecycle,realTouchCases:['drag and release','touchCancel','second finger cancellation']};
+  return{...evidence,layout,lifecycle,nativePause,realTouchCases:['drag and release','touchCancel','second finger cancellation','pause held across a cooldown HUD update']};
  }finally{await cdp.detach();}
 }
 
