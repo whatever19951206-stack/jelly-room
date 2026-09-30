@@ -1,5 +1,7 @@
 # 慢慢切 · 果冻小店
 
+[在线试玩](https://whatever19951206-stack.github.io/jelly-room/) · [下载离线成品](https://github.com/whatever19951206-stack/jelly-room/releases/latest)
+
 一个离线可玩的三维果冻小店 demo，参考用户视频及 [Melon Jelly Knife](https://claude.ai/artifact/RiTbBMEqgfNwgMHMTAhf5P) 的拖拽、受压和切割手感制作。
 
 已加入完整循环：读订单 → 按比例切配 → 装盘 → 交单评星 → 解锁下一单。24 个订单分为六章，涉及均分、不等份、刀数限制、瓜心与果皮、指定盘位和双口味综合订单。72 颗星、11 枚印章、每日练习及后续随机练习提供重复挑战，自由沙盒保留。
