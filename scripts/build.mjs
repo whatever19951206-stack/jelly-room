@@ -1,0 +1,13 @@
+import {build} from 'esbuild';
+import {readFile,writeFile,mkdir,copyFile} from 'node:fs/promises';
+const result=await build({entryPoints:['src/main.js'],bundle:true,minify:true,format:'iife',target:['chrome100','safari16'],write:false,legalComments:'eof'});
+let shell=await readFile('src/shell.html','utf8');
+shell=shell.replace('/*__STYLE__*/',await readFile('src/style.css','utf8')).replace('/*__SCRIPT__*/',()=>result.outputFiles[0].text.replaceAll('</script','<\\/script'));
+const threeLicense=await readFile('node_modules/three/LICENSE','utf8');
+shell=shell.replace('<!doctype html>',`<!doctype html>\n<!--\nThird-party software notice: Three.js\n${threeLicense.replaceAll('-->','-- >')}\n-->`);
+await writeFile('index.html',shell);
+await mkdir('成品',{recursive:true});
+await writeFile('成品/慢慢切.html',shell);
+await copyFile('docs/使用说明.md','成品/使用说明.md');
+await copyFile('node_modules/three/LICENSE','成品/THREE-LICENSE.txt');
+console.log(`Built offline game: ${(Buffer.byteLength(shell)/1024).toFixed(0)} KB`);
