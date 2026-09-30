@@ -1,0 +1,76 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+jobs:
+  build:
+    name: Test and prepare the public game
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build the offline game
+        run: npm run build
+
+      - name: Stage only the game and its Three.js license
+        shell: bash
+        run: |
+          test -s index.html
+          mkdir -p "$RUNNER_TEMP/jelly-room-pages"
+          cp index.html "$RUNNER_TEMP/jelly-room-pages/index.html"
+          cp node_modules/three/LICENSE "$RUNNER_TEMP/jelly-room-pages/THREE-LICENSE.txt"
+          test -s "$RUNNER_TEMP/jelly-room-pages/THREE-LICENSE.txt"
+          cmp node_modules/three/LICENSE "$RUNNER_TEMP/jelly-room-pages/THREE-LICENSE.txt"
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: ${{ runner.temp }}/jelly-room-pages
+
+  deploy:
+    name: Publish the game
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6.0.0
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1
