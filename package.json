@@ -1,8 +1,8 @@
 {
   "name": "jelly-room",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
-  "description": "An offline 3D jelly shop with a 24-order campaign and tactile soft-body play",
+  "description": "An offline 3D jelly shop and squishy falling-block puzzle",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",

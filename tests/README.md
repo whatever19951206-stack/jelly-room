@@ -34,12 +34,15 @@ node tests/controls-check.cjs
 node tests/browser-check.cjs
 node tests/layout-check.cjs
 node tests/shop-smoke.cjs
+node tests/jelly-blocks-browser.cjs
 node tests/campaign-physics.cjs
 node tests/campaign-playthrough.cjs
 ```
 
 默认地址为 `http://127.0.0.1:4173/`。完整战役验收会实际切割、装盘并提交全部 24 单，耗时较长。
 战役脚本仅用独立浏览器里的存档夹具解锁待测订单；游戏操作仍使用鼠标、键盘和页面按钮。
+
+方块验收覆盖桌面、手机竖屏和横屏，实际操作移动、旋转、暂存、软降、硬降、暂停、重开及结束，并检查退出后小店切割。触屏测试使用真实触摸输入；后台与失焦的生命周期测试会明确标注受控事件，避免把无界面浏览器的事件模拟当作真实窗口切换。
 
 ## 可选环境变量
 
