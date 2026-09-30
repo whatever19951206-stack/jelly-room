@@ -1,0 +1,19 @@
+{
+  "name": "jelly-room",
+  "version": "2.0.0",
+  "private": true,
+  "description": "An offline 3D jelly shop with a 24-order campaign and tactile soft-body play",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.62.1"
+  }
+}

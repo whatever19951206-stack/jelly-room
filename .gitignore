@@ -1,0 +1,9 @@
+node_modules/
+.tools/
+.reference/
+qa/
+*.zip
+_site/
+.publish/
+playwright-report/
+test-results/
