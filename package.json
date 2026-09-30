@@ -1,8 +1,8 @@
 {
   "name": "jelly-room",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
-  "description": "An offline 3D jelly shop and squishy falling-block puzzle",
+  "description": "An offline 3D fruit-jelly shop, watermelon merge game and falling-block puzzle",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
