@@ -1,0 +1,20 @@
+const {launchBrowser,localGameURL}=require('./browser-runtime.cjs');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await launchBrowser();
+ const page=await browser.newPage({viewport:{width:1440,height:960}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(localGameURL('成品/慢慢切.html'));await page.waitForFunction(()=>window.__jelly?.state.pieces===1);await page.locator('[data-action=sandbox]').click();await page.waitForTimeout(1400);
+ await page.locator('#settings-toggle').click();await page.locator('#damping').fill('82');assert.equal(await page.evaluate(()=>window.__jelly.state.damping),.82);
+ await page.locator('#mesh-mode').check();assert.equal(await page.evaluate(()=>window.__jelly.state.showMesh),true);
+ await page.locator('#jiggle').click();await page.waitForTimeout(120);await page.locator('#pause-mode').click();
+ const stopped=await page.evaluate(()=>window.__jelly.state);assert.equal(stopped.paused,true);await page.waitForTimeout(450);const still=await page.evaluate(()=>window.__jelly.state);
+ assert.deepEqual(still.bodies.map(b=>b.position),stopped.bodies.map(b=>b.position),'pause must freeze actual physics positions');
+ await page.screenshot({path:'qa/physics-controls.png'});await page.locator('#pause-mode').click();await page.waitForTimeout(400);
+ const resumed=await page.evaluate(()=>window.__jelly.state);assert.equal(resumed.paused,false);assert.notDeepEqual(resumed.bodies[0].position,stopped.bodies[0].position);
+ await page.locator('#mesh-mode').uncheck();await page.locator('#slow-mode').check();await page.locator('#settings-toggle').click();await page.locator('#reset').click();await page.waitForTimeout(2800);
+ await page.locator('#cut-tool').click();const p=(await page.evaluate(()=>window.__jelly.centers))[0];await page.mouse.click(p.x,p.y);await page.waitForTimeout(900);
+ const slow=await page.evaluate(()=>window.__jelly.state);assert.equal(slow.slowMode,true);assert.equal(slow.cuts,0);assert.ok(slow.cutProgress>.10&&slow.cutProgress<.43,`quarter speed actual cut progress=${slow.cutProgress}`);
+ await page.locator('#settings-toggle').click();await page.locator('#slow-mode').uncheck();await page.locator('#settings-toggle').click();await page.waitForTimeout(1100);
+ assert.equal(await page.evaluate(()=>window.__jelly.state.cuts),1);assert.deepEqual(errors,[]);
+ console.log('PASS: damping, visible mesh, actual pause/resume, measured quarter-speed cutting, live readouts');await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});
