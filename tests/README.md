@@ -35,6 +35,7 @@ node tests/browser-check.cjs
 node tests/layout-check.cjs
 node tests/shop-smoke.cjs
 node tests/jelly-blocks-browser.cjs
+node tests/fruit-merge-browser.cjs
 node tests/campaign-physics.cjs
 node tests/campaign-playthrough.cjs
 ```
@@ -43,6 +44,8 @@ node tests/campaign-playthrough.cjs
 战役脚本仅用独立浏览器里的存档夹具解锁待测订单；游戏操作仍使用鼠标、键盘和页面按钮。
 
 方块验收覆盖桌面、手机竖屏和横屏，实际操作移动、旋转、暂存、软降、硬降、暂停、重开及结束，并检查退出后小店切割。触屏测试使用真实触摸输入；后台与失焦的生命周期测试会明确标注受控事件，避免把无界面浏览器的事件模拟当作真实窗口切换。
+
+水果合成验收覆盖桌面、手机竖屏及横屏，使用真实鼠标、键盘和触摸输入投放与合成；读取快照仅用于瞄准规划，不修改游戏中的水果或分数。桌面长局会自然堆到危险线、结束并重开，另检查取消触摸、多指输入、暂停、返回续局、最高分及原有两种模式。全 11 个切片等级的单独材质展示只用于画质检查，不作为真实通关证据。
 
 ## 可选环境变量
 
