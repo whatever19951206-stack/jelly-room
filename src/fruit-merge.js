@@ -38,7 +38,7 @@ function icon(level,id='slice'){
 export class FruitMergeGame{
  constructor({onExit=()=>{},onSound=()=>{}}={}){
   this.onExit=onExit;this.onSound=onSound;this._visible=false;this.soundEnabled=true;this.bestScore=best();this.sessionBest=this.bestScore;
-  this.renderer=null;this.visuals=new Map();this.ghosts=[];this.particles=[];this.fusions=[];this.heldInputs=new Map();this.pointerCaptures=new Map();this.activePointers=new Set();this.gesture=null;this.cancelledGesture=false;
+  this.renderer=null;this.visuals=new Map();this.ghosts=[];this.particles=[];this.fusions=[];this.heldInputs=new Map();this.pointerCaptures=new Map();this.touchActions=new Map();this.suppressedTouchClicks=new WeakMap();this.activePointers=new Set();this.gesture=null;this.cancelledGesture=false;
   this.time=0;this.frames=0;this.eventLog=[];this._hudKey='';this._overlayStatus='';this._lastContactSound=-10;this._toastUntil=0;this._maxIndent=0;this._deformPoint=new THREE.Vector3();this.reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   this.root=document.createElement('section');this.root.id='fruit-merge-screen';this.root.hidden=true;this.root.setAttribute('aria-label','水果果冻合成游戏');
   this.root.innerHTML=`<header class="fm-topbar"><button id="fm-exit" class="fm-back" data-fm-action="exit">${svg('back')}<span>返回小店</span></button><div class="fm-wordmark"><i>j.</i><span>JELLY ROOM</span><small>JELLY SLICES / 03</small></div><div class="fm-top-actions"><button id="fm-sound" data-fm-action="sound" aria-label="关闭水果果冻声音" title="声音 · M">${svg('sound')}</button><button id="fm-pause" data-fm-action="pause" aria-label="暂停游戏" title="暂停 · P / Esc">${svg('pause')}</button><button id="fm-restart-top" data-fm-action="restart" aria-label="重新开局">${svg('restart')}</button></div></header>
@@ -72,10 +72,37 @@ export class FruitMergeGame{
  _autoPause(reason){if(!this._visible)return;this._releaseInputs();this.pauseReason=reason;if(this.model.status==='playing')this.model.pause();this._updateHUD();}
  _aim(clientX,clientY){if(!this.camera||this.model.status!=='playing')return;const r=this.canvas.getBoundingClientRect(),p=new THREE.Vector3((clientX-r.left)/r.width*2-1,1-(clientY-r.top)/r.height*2,.5).unproject(this.camera);const direction=this.camera.getWorldDirection(new THREE.Vector3());p.addScaledVector(direction,-p.z/direction.z);this.model.setAim(p.x+WIDTH/2);}
  _perform(action){if(this.model.status!=='playing')return;if(action==='drop'){this.model.drop();return;}this.model.setAim(this.model.aimX+(action==='left'?-.32:.32));}
+ _activateAction(action){
+  if(!this._visible)return;
+  if(action==='start'||action==='restart')this._start();
+  else if(action==='resume'&&this.model.status==='paused')this._togglePause();
+  else if(action==='pause')this._togglePause();
+  else if(action==='exit'){this.close();this.onExit();}
+  else if(action==='sound'){this.soundEnabled=!this.soundEnabled;this._updateHUD();}
+ }
+ _releaseTouchAction(event){
+  const held=this.touchActions.get(event.pointerId);if(!held)return;
+  this.touchActions.delete(event.pointerId);held.button.classList.remove('pressed');
+  this.suppressedTouchClicks.set(held.button,performance.now()+900);
+  if(event.type!=='pointerup'||held.cancelled||!this._visible||!held.button.isConnected||held.button.disabled)return;
+  const r=held.button.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)return;
+  // A dragged canvas gesture can suppress the following synthetic click in mobile browsers.
+  // Complete an intentional touch release directly, then ignore its optional compatibility click.
+  this._activateAction(held.action);
+ }
  _bindInputs(){
-  this.root.addEventListener('click',event=>{const button=event.target.closest('button');if(!button||button.disabled||!this._visible)return;const control=button.dataset.fmControl;if(control){if(event.detail===0)this._perform(control);return;}const action=button.dataset.fmAction;if(action==='start'||action==='restart')this._start();else if(action==='resume'&&this.model.status==='paused')this._togglePause();else if(action==='pause')this._togglePause();else if(action==='exit'){this.close();this.onExit();}else if(action==='sound'){this.soundEnabled=!this.soundEnabled;this._updateHUD();}});
-  this.root.addEventListener('pointerdown',event=>{const control=event.target.closest('[data-fm-control]');if(!control||event.button!==0||!this._visible||this.model.status!=='playing')return;event.preventDefault();control.setPointerCapture(event.pointerId);this.pointerCaptures.set(event.pointerId,control);control.classList.add('pressed');if(control.dataset.fmControl==='drop')this._perform('drop');else this._press(control.dataset.fmControl,`pointer:${event.pointerId}`);});
-  const releaseControl=event=>{this.pointerCaptures.delete(event.pointerId);this._releaseSource(`pointer:${event.pointerId}`);event.target.closest?.('[data-fm-control]')?.classList.remove('pressed');};
+  this.root.addEventListener('click',event=>{const button=event.target.closest('button');if(!button||button.disabled||!this._visible)return;if(event.detail>0&&(this.suppressedTouchClicks.get(button)||0)>=performance.now()){this.suppressedTouchClicks.delete(button);event.preventDefault();return;}const control=button.dataset.fmControl;if(control){if(event.detail===0)this._perform(control);return;}this._activateAction(button.dataset.fmAction);});
+  this.root.addEventListener('pointerdown',event=>{
+   const actionButton=event.target.closest('[data-fm-action]');
+   if(actionButton&&event.pointerType!=='touch')this.suppressedTouchClicks.delete(actionButton);
+   if(actionButton&&event.pointerType==='touch'&&event.button===0&&this._visible&&!actionButton.disabled){
+    if(this.touchActions.size||event.isPrimary===false){for(const held of this.touchActions.values())held.cancelled=true;return;}
+    event.preventDefault();this.touchActions.set(event.pointerId,{button:actionButton,action:actionButton.dataset.fmAction,x:event.clientX,y:event.clientY,cancelled:false});actionButton.setPointerCapture(event.pointerId);this.pointerCaptures.set(event.pointerId,actionButton);actionButton.classList.add('pressed');return;
+   }
+   const control=event.target.closest('[data-fm-control]');if(!control||event.button!==0||!this._visible||this.model.status!=='playing')return;event.preventDefault();control.setPointerCapture(event.pointerId);this.pointerCaptures.set(event.pointerId,control);control.classList.add('pressed');if(control.dataset.fmControl==='drop')this._perform('drop');else this._press(control.dataset.fmControl,`pointer:${event.pointerId}`);
+  });
+  this.root.addEventListener('pointermove',event=>{const held=this.touchActions.get(event.pointerId);if(held&&Math.hypot(event.clientX-held.x,event.clientY-held.y)>14)held.cancelled=true;});
+  const releaseControl=event=>{this.pointerCaptures.delete(event.pointerId);this._releaseSource(`pointer:${event.pointerId}`);event.target.closest?.('[data-fm-control]')?.classList.remove('pressed');this._releaseTouchAction(event);};
   this.root.addEventListener('pointerup',releaseControl);this.root.addEventListener('pointercancel',releaseControl);this.root.addEventListener('lostpointercapture',releaseControl);this.root.addEventListener('contextmenu',event=>event.preventDefault());
   this.canvas.addEventListener('pointerdown',event=>{if(!this._visible||this.model.status!=='playing'||event.button!==0)return;event.preventDefault();this.activePointers.add(event.pointerId);if(this.gesture||this.activePointers.size>1){this.gesture=null;this.cancelledGesture=true;return;}this.cancelledGesture=false;this._aim(event.clientX,event.clientY);this.gesture={id:event.pointerId};this.canvas.setPointerCapture(event.pointerId);this.pointerCaptures.set(event.pointerId,this.canvas);});
   this.canvas.addEventListener('pointermove',event=>{if(!this._visible||this.model.status!=='playing'||this.cancelledGesture)return;if(event.pointerType==='mouse'&&!this.gesture||this.gesture?.id===event.pointerId)this._aim(event.clientX,event.clientY);});
@@ -87,7 +114,7 @@ export class FruitMergeGame{
  }
  _press(action,source){if(this.model.status!=='playing')return;let held=this.heldInputs.get(action);if(!held){held={sources:new Set(),elapsed:0,next:.15};this.heldInputs.set(action,held);this._perform(action);}held.sources.add(source);}
  _releaseSource(source){for(const [action,held] of this.heldInputs){held.sources.delete(source);if(!held.sources.size)this.heldInputs.delete(action);}}
- _releaseInputs(){this.heldInputs.clear();this.gesture=null;this.activePointers.clear();this.cancelledGesture=false;for(const [id,element] of this.pointerCaptures){try{if(element.hasPointerCapture(id))element.releasePointerCapture(id);}catch{/* Pointer may already have been cancelled by the browser. */}}this.pointerCaptures.clear();this.root.querySelectorAll('[data-fm-control]').forEach(button=>button.classList.remove('pressed'));}
+ _releaseInputs(){this.heldInputs.clear();this.gesture=null;this.activePointers.clear();this.cancelledGesture=false;this.touchActions.clear();for(const [id,element] of this.pointerCaptures){try{if(element.hasPointerCapture(id))element.releasePointerCapture(id);}catch{/* Pointer may already have been cancelled by the browser. */}}this.pointerCaptures.clear();this.root.querySelectorAll('[data-fm-control],[data-fm-action]').forEach(button=>button.classList.remove('pressed'));}
  _repeatInputs(dt){for(const [action,held] of this.heldInputs){if(!['left','right'].includes(action))continue;held.elapsed+=dt;let count=0;while(held.elapsed>=held.next&&count++<4){this._perform(action);held.next+=.045;}}}
  _onEvent(event){
   this.eventLog.push({type:event.type,level:event.level??event.body?.level,bodyId:event.bodyId??event.body?.id,scoreDelta:event.scoreDelta,chain:event.chain,intensity:event.intensity});if(this.eventLog.length>18)this.eventLog.shift();
